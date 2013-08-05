@@ -1,0 +1,33 @@
+{
+  "name": "strong-caching-http-client",
+  "version": "0.1.0",
+  "description": "HTTP client with a transparent filesystem-based cache",
+  "license": "MIT",
+  "main": "index.js",
+  "scripts": {
+    "blanket": {
+      "pattern": "//^((?!(node_modules|test)).)*$/"
+    },
+    "coverage": "./node_modules/.bin/mocha -r blanket -R html-cov > coverage.html",
+    "test": "mocha --reporter spec",
+    "lint": "./node_modules/.bin/jshint *.js test lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/strongloop/strong-cached-http.git"
+  },
+  "author": {
+    "name": "Miroslav Bajtos",
+    "email": "miroslav@strongloop.com"
+  },
+  "devDependencies": {
+    "mocha": "~1.9.0",
+    "jshint": "~2.0.1",
+    "blanket": "~1.1.4",
+    "chai": "~1.7.2",
+    "debug": "~0.7.2"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  }
+}
