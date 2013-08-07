@@ -16,3 +16,25 @@ filesystem-based cache.
 $ npm install strong-caching-http-client
 ```
 
+### API
+
+The API is similar to the API of [request](https://npmjs.org/package/request).
+
+```javascript
+var client = require('strong-caching-http-client');
+
+client.request(
+  'http://nodejs.org/',
+  {
+    cache: '/tmp/http-client-cache'
+  },
+  function(err, resp) {
+    // resp is http.IncomingMessage
+  }
+);
+```
+
+#### Options:
+
+ * `cache` Path to the directory where the client should keep cached data.
+
