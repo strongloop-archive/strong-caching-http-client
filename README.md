@@ -37,4 +37,6 @@ client.request(
 #### Options:
 
  * `cache` Path to the directory where the client should keep cached data.
-
+ * `method` GET/POST/etc.
+ * `headers` Request headers (optional).
+ * `body` Request body (optional). Either `String`, `Buffer` or `Stream`.

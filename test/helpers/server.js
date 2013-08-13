@@ -4,6 +4,8 @@ var debug = require('debug')('test-server');
 exports.setup = setupServerStub;
 exports.resetRequestHandler = resetRequestHandler;
 exports.respondWith = respondWith;
+exports.respondWithRequestCopy = respondWithRequestCopy;
+exports.onRequest = onRequest;
 exports.readToEnd = readToEnd;
 
 var server;
@@ -21,6 +23,7 @@ function setupServerStub(done) {
 
   server.listen(0, function() {
     exports.port = server.address().port;
+    exports.url = 'http://localhost:' + exports.port + '/';
     debug('Test server listening on port %d', exports.port);
     done();
   });
@@ -39,18 +42,33 @@ function defaultHttpHandler(req, resp) {
   resp.end();
 }
 
-function readToEnd(stream, cb) {
+function readToEnd(stream, enc, cb) {
+  if (!cb && typeof(enc) === 'function') {
+    cb = enc;
+    enc = 'utf-8';
+  }
   var content = '';
   stream.on('error', failTestOrHook);
   stream.on('data', function(chunk) {
-    content += chunk.toString();
+    content += chunk.toString(enc);
   });
   stream.on('end', function() { cb(content); });
 }
 
+function onRequest(cb) {
+  onHttpRequest = cb;
+}
+
 function respondWith(code, headers, content) {
-  onHttpRequest = function(req, resp) {
+  onRequest(function(req, resp) {
     resp.writeHead(code, headers || {});
     resp.end(content);
-  };
+  });
+}
+
+function respondWithRequestCopy() {
+  onRequest(function(req, resp) {
+    resp.writeHead(200, req.headers);
+    req.pipe(resp);
+  });
 }
