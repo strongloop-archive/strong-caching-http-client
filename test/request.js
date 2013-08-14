@@ -19,15 +19,12 @@ describe('client.request', function() {
     client.request(
       serverStub.url,
       { cache: sandbox.PATH },
-      function(err, resp) {
-        if (err) done(err);
+      readResponseBodyCb(done, function(resp, content) {
         expect(resp.statusCode).to.equal(200);
         expect(resp.headers['x-test']).to.equal('test');
-        serverStub.readToEnd(resp, function(content) {
-          expect(content).to.equal('a-content');
-          done();
-        });
-      }
+        expect(content).to.equal('a-content');
+        done();
+      })
     );
   });
 
@@ -49,12 +46,7 @@ describe('client.request', function() {
       client.request(
         serverStub.url,
         { cache: sandbox.PATH },
-        function(err, resp) {
-          if (err) done(err);
-          serverStub.readToEnd(resp, function(content) {
-            cb(resp, content);
-          });
-        }
+        readResponseBodyCb(done, cb)
       );
     }
   });
@@ -70,14 +62,11 @@ describe('client.request', function() {
         headers: { 'x-test': 'test' },
         body: 'a-content'
       },
-      function(err, resp) {
-        if (err) done(err);
-        serverStub.readToEnd(resp, function(content) {
-          expect(resp.headers['x-test'], 'remote' + ' header').to.equal('test');
-          expect(content, 'remote' + ' content').to.equal('a-content');
-          done();
-        });
-      }
+      readResponseBodyCb(done, function(resp, content) {
+        expect(resp.headers['x-test'], 'remote' + ' header').to.equal('test');
+        expect(content, 'remote' + ' content').to.equal('a-content');
+        done();
+      })
     );
   });
 
@@ -91,13 +80,10 @@ describe('client.request', function() {
         method: 'POST',
         body: aBuffer
       },
-      function(err, resp) {
-        if (err) done(err);
-        serverStub.readToEnd(resp, 'hex', function(content) {
-          expect(content).to.equal(aBuffer.toString('hex'));
-          done();
-        });
-      }
+      readResponseBodyCb(done, 'hex', function(resp, content) {
+        expect(content).to.equal(aBuffer.toString('hex'));
+        done();
+      })
     );
   });
 
@@ -111,13 +97,73 @@ describe('client.request', function() {
         method: 'POST',
         body: aStream
       },
-      function(err, resp) {
-        if (err) done(err);
-        serverStub.readToEnd(resp, function(content) {
-          expect(content).to.equal('a-stream');
-          done();
-        });
-      }
+      readResponseBodyCb(done, function(resp, content) {
+        expect(content).to.equal('a-stream');
+        done();
+      })
     );
   });
+
+  it('does not cache non-GET requests', function(done) {
+    serverStub.respondWith(200, {}, 'a-content');
+    doPost(function(resp, content) {
+      expect(resp.statusCode).to.equal(200);
+
+      serverStub.respondWith(500, {}, 'an-error');
+      doPost(function(resp, content) {
+        expect(resp.statusCode).to.equal(500);
+        expect(content).to.equal('an-error');
+        done();
+      });
+    });
+
+    function doPost(cb) {
+      client.request(
+        serverStub.url,
+        {
+          cache: sandbox.PATH,
+          method: 'POST'
+        },
+        readResponseBodyCb(done, cb)
+      );
+    }
+  });
+
+  it('does not cache error responses', function(done) {
+    serverStub.respondWith(404);
+    doGet(function(resp, content) {
+      expect(resp.statusCode).to.equal(404);
+
+      serverStub.respondWith(500, {}, 'an-error');
+      doGet(function(resp, content) {
+        expect(resp.statusCode).to.equal(500);
+        expect(content).to.equal('an-error');
+        done();
+      });
+    });
+
+    function doGet(cb) {
+      client.request(
+        serverStub.url,
+        {
+          cache: sandbox.PATH,
+          method: 'POST'
+        },
+        readResponseBodyCb(done, cb)
+      );
+    }
+  });
 });
+
+function readResponseBodyCb(testDoneCb, enc, successCb) {
+  if (successCb === undefined && typeof(enc) === 'function') {
+    successCb = enc;
+    enc = undefined;
+  }
+  return function(err, resp) {
+    if (err) testDoneCb(err);
+    serverStub.readToEnd(resp, enc, function(content) {
+      successCb(resp, content);
+    });
+  };
+}
