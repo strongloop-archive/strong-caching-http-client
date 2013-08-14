@@ -2,6 +2,7 @@
 
 var expect = require('chai').expect;
 var StringStream = require('string-stream');
+var debug = require('debug')('test');
 
 var sandbox = require('./helpers/sandbox.js');
 var serverStub = require('./helpers/server.js');
@@ -35,7 +36,7 @@ describe('client.request', function() {
 
       serverStub.respondWith(500);
       doGet(function(resp, content) {
-        expect(resp.statusCode).to.equal(200);
+        expect(resp.statusCode).to.equal(304);
         expect(resp.headers['x-test']).to.equal('test');
         expect(content).to.equal('a-content');
         done();
@@ -43,64 +44,58 @@ describe('client.request', function() {
     });
 
     function doGet(cb) {
-      client.request(
-        serverStub.url,
-        { cache: sandbox.PATH },
-        readResponseBodyCb(done, cb)
-      );
+      request({ maxAge: 60 }, done, cb);
     }
   });
 
   it('sends request headers and string body', function(done) {
     serverStub.respondWithRequestCopy();
 
-    client.request(
-      serverStub.url,
+    request(
       {
-        cache: sandbox.PATH,
         method: 'POST',
         headers: { 'x-test': 'test' },
         body: 'a-content'
       },
-      readResponseBodyCb(done, function(resp, content) {
+      done,
+      function(resp, content) {
         expect(resp.headers['x-test'], 'remote' + ' header').to.equal('test');
         expect(content, 'remote' + ' content').to.equal('a-content');
         done();
-      })
+      }
     );
   });
 
   it('sends request body from Buffer', function(done) {
     var aBuffer = new Buffer([0x01, 0x02, 0x03]);
     serverStub.respondWithRequestCopy();
-    client.request(
-      serverStub.url,
+    request(
       {
-        cache: sandbox.PATH,
         method: 'POST',
         body: aBuffer
       },
-      readResponseBodyCb(done, 'hex', function(resp, content) {
+      'hex',
+      done,
+      function(resp, content) {
         expect(content).to.equal(aBuffer.toString('hex'));
         done();
-      })
+      }
     );
   });
 
   it('sends request body from Stream', function(done) {
     var aStream = new StringStream('a-stream');
     serverStub.respondWithRequestCopy();
-    client.request(
-      serverStub.url,
+    request(
       {
-        cache: sandbox.PATH,
         method: 'POST',
         body: aStream
       },
-      readResponseBodyCb(done, function(resp, content) {
+      done,
+      function(resp, content) {
         expect(content).to.equal('a-stream');
         done();
-      })
+      }
     );
   });
 
@@ -118,13 +113,13 @@ describe('client.request', function() {
     });
 
     function doPost(cb) {
-      client.request(
-        serverStub.url,
+      request(
         {
-          cache: sandbox.PATH,
+          maxAge: Infinity,
           method: 'POST'
         },
-        readResponseBodyCb(done, cb)
+        done,
+        cb
       );
     }
   });
@@ -143,14 +138,53 @@ describe('client.request', function() {
     });
 
     function doGet(cb) {
-      client.request(
-        serverStub.url,
+      request(
         {
-          cache: sandbox.PATH,
+          maxAge: Infinity,
           method: 'POST'
         },
-        readResponseBodyCb(done, cb)
+        done,
+        cb
       );
+    }
+  });
+
+  it('ignores cached responses older than maxAge', function(done) {
+    serverStub.respondWith(200, {}, 'a-content');
+    request({}, done, function(resp, content) {
+      serverStub.respondWith(200, {}, 'new-content');
+      request({ maxAge: 0 }, done, function(resp, content) {
+        expect(resp.statusCode).to.equal(200);
+        expect(content).to.equal('new-content');
+        done();
+      });
+    });
+  });
+
+  it('uses etag to cache GET requests', function(done) {
+    serverStub.respondWith(200, { ETag: 'an-etag' }, 'a-content');
+    doGet(function(resp, content) {
+      debug('first response headers: %j', resp.headers);
+      serverStub.onRequest(handleEtagRequest);
+      doGet(function(resp, content) {
+        expect(content).to.equal('a-content');
+        expect(resp.statusCode).to.equal(304);
+        done();
+      });
+    });
+
+    function doGet(cb) {
+      request({ maxAge: 0 }, done, cb);
+    }
+
+    function handleEtagRequest(req, resp) {
+      if (req.headers['if-none-match'] === 'an-etag') {
+        resp.writeHead(304, {});
+        resp.end();
+      } else {
+        resp.writeHead(200, { ETag: 'another-etag' });
+        resp.end('etag not matched: ' + req.headers['if-none-match']);
+      }
     }
   });
 });
@@ -166,4 +200,20 @@ function readResponseBodyCb(testDoneCb, enc, successCb) {
       successCb(resp, content);
     });
   };
+}
+
+function request(options, responseEncoding, testDoneCb, successCb) {
+  if (typeof(responseEncoding) === 'function') {
+    successCb = testDoneCb;
+    testDoneCb = responseEncoding;
+    responseEncoding = undefined;
+  }
+
+  options.cache = sandbox.PATH;
+
+  client.request(
+    serverStub.url,
+    options,
+    readResponseBodyCb(testDoneCb, responseEncoding, successCb)
+  );
 }

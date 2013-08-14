@@ -40,3 +40,5 @@ client.request(
  * `method` GET/POST/etc.
  * `headers` Request headers (optional).
  * `body` Request body (optional). Either `String`, `Buffer` or `Stream`.
+ * `maxAge` Accept a cached response whose age is no greated that the specified
+  time in seconds. Default: 60.
