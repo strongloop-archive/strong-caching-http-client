@@ -187,6 +187,35 @@ describe('client.request', function() {
       }
     }
   });
+
+  it('returns a stale response and updates the cache later', function(done) {
+    serverStub.respondWith(200, {}, 'stale-content');
+
+    // 1. Cache the result
+    request({}, done, function() {
+      getStaleResult(function () {
+        getUpdatedResult(done);
+      });
+    });
+
+    function getStaleResult(next) {
+      serverStub.respondWith(200, {}, 'updated-content');
+      var r = request({ maxStale: Infinity }, done, function(resp, content) {
+        expect(content).to.equal('stale-content');
+      });
+      r.on('cache-update', function() {
+        next();
+      });
+    }
+
+    function getUpdatedResult(next) {
+      serverStub.respondWith(500, {}, 'unexpected');
+      request({ maxAge: 60 }, done, function(resp, content) {
+        expect(content).to.equal('updated-content');
+        next();
+      });
+    }
+  });
 });
 
 function readResponseBodyCb(testDoneCb, enc, successCb) {
@@ -211,7 +240,7 @@ function request(options, responseEncoding, testDoneCb, successCb) {
 
   options.cache = sandbox.PATH;
 
-  client.request(
+  return client.request(
     serverStub.url,
     options,
     readResponseBodyCb(testDoneCb, responseEncoding, successCb)
