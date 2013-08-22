@@ -1,4 +1,4 @@
-/*global describe, before, beforeEach, it */
+/*global describe, before, after, beforeEach, afterEach, it */
 
 var expect = require('chai').expect;
 var StringStream = require('string-stream');
@@ -10,8 +10,8 @@ var serverStub = require('./helpers/server.js');
 var client = require('..');
 
 describe('client.request', function() {
-  before(serverStub.setup);
-  beforeEach(serverStub.resetRequestHandler);
+  beforeEach(serverStub.setup);
+  afterEach(serverStub.shutdown);
   beforeEach(sandbox.reset);
 
   it('returns GET response from server', function(done) {
@@ -216,6 +216,20 @@ describe('client.request', function() {
       });
     }
   });
+
+  it('returns cached response on remote error', function(done) {
+    serverStub.respondWith(200, {}, 'a-content');
+    request({}, done, function() {
+      serverStub.shutdown(function() {
+        request({ maxAge: 0 }, done, function(resp, content) {
+          expect(resp.statusCode).to.equal(304);
+          expect(content).to.equal('a-content');
+          done();
+        });
+      });
+    });
+  });
+
 });
 
 function readResponseBodyCb(testDoneCb, enc, successCb) {
@@ -224,8 +238,8 @@ function readResponseBodyCb(testDoneCb, enc, successCb) {
     enc = undefined;
   }
   return function(err, resp) {
-    if (err) testDoneCb(err);
-    serverStub.readToEnd(resp, enc, function(content) {
+    if (err) return testDoneCb.apply(this, arguments);
+    return serverStub.readToEnd(resp, enc, function(content) {
       successCb(resp, content);
     });
   };

@@ -7,6 +7,7 @@ exports.respondWith = respondWith;
 exports.respondWithRequestCopy = respondWithRequestCopy;
 exports.onRequest = onRequest;
 exports.readToEnd = readToEnd;
+exports.shutdown = shutdownServerStub;
 
 var server;
 
@@ -16,6 +17,11 @@ function setupServerStub(done) {
   server = http.createServer(function(req, resp) {
     req.on('error', failTestOrHook);
     resp.on('error', failTestOrHook);
+
+    // Disable keep-alive connections to make shutdownServerStub work
+    // as expected.
+    resp.setHeader('Connection', 'close');
+
     onHttpRequest.apply(this, arguments);
   });
 
@@ -27,6 +33,14 @@ function setupServerStub(done) {
     debug('Test server listening on port %d', exports.port);
     done();
   });
+}
+
+function shutdownServerStub(done) {
+  if (!server)
+    return done();
+
+  server.close(done);
+  server = null;
 }
 
 function failTestOrHook(err) {
