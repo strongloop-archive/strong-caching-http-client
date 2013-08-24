@@ -49,6 +49,25 @@ describe('client.request', function() {
     }
   });
 
+  it('returns HEAD response from cache', function(done) {
+    serverStub.respondWith(200, { 'x-test' : 'test' }, 'a-content');
+    doGet(function(resp, content) {
+      expect(resp.statusCode).to.equal(200);
+
+      serverStub.respondWith(500);
+      doGet(function(resp, content) {
+        expect(resp.statusCode).to.equal(304);
+        expect(resp.headers['x-test']).to.equal('test');
+        expect(content).to.equal('');
+        done();
+      });
+    });
+
+    function doGet(cb) {
+      request({ maxAge: 60, method: 'HEAD' }, done, cb);
+    }
+  });
+
   it('sends request headers and string body', function(done) {
     serverStub.respondWithRequestCopy();
 
