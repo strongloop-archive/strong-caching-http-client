@@ -19,4 +19,6 @@
  * THE SOFTWARE.
  */
 
+'use strict';
+
 exports.request = require('./lib/caching-request.js');
