@@ -16,3 +16,31 @@ filesystem-based cache.
 $ npm install strong-caching-http-client
 ```
 
+### API
+
+The API is similar to the API of [request](https://npmjs.org/package/request).
+
+```javascript
+var client = require('strong-caching-http-client');
+
+client.request(
+  'http://nodejs.org/',
+  {
+    cache: '/tmp/http-client-cache'
+  },
+  function(err, resp) {
+    // resp is http.IncomingMessage
+  }
+);
+```
+
+#### Options:
+
+ * `cache` Path to the directory where the client should keep cached data.
+ * `method` GET/POST/etc.
+ * `headers` Request headers (optional).
+ * `body` Request body (optional). Either `String`, `Buffer` or `Stream`.
+ * `maxAge` Accept a cached response whose age is no greater that the specified
+  time in seconds. Default: 60.
+ * `maxStale` Accept a cached response that has exceeded its expiration time
+  (as set by maxAge option) by no more than the specified time in seconds.
