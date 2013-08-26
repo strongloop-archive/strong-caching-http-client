@@ -1,8 +1,9 @@
 ## Backlog
 
 ### Must have
-- API for purging cache items, so that the npm client can clean the cache
-  after a package was published or unpublished
+- API for invalidating individual cache items, so that the npm client can
+  remove cached data about a package after a new version was published
+  (or a version was unpublished).
 - API for `/-/all` that is updated incrementally via
 
         /-/all/since?stale=update_after&startkey={time}
