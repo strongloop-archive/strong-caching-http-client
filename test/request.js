@@ -49,6 +49,37 @@ describe('client.request', function() {
     }
   });
 
+  it('allows body with GET request', function(done) {
+    serverStub.onRequest(function(req, res) {
+      serverStub.readToEnd(req, 'ascii', function(content) {
+        expect(content).to.equal('a-content');
+        res.setHeader('x-test', 'test');
+        res.end('a-content');
+      });
+    });
+    doGet(function(resp, content) {
+      expect(resp.statusCode).to.equal(200);
+
+      serverStub.respondWith(500);
+      doGet(function(resp, content) {
+        expect(resp.statusCode).to.equal(304);
+        expect(resp.headers['x-test']).to.equal('test');
+        expect(content).to.equal('a-content');
+        done();
+      });
+    });
+
+    function doGet(cb) {
+      request({
+        maxAge: 60,
+        headers: {
+          'content-length': 'a-content'.length
+        },
+        body: 'a-content'
+      }, done, cb);
+    }
+  });
+
   it('returns HEAD response from cache', function(done) {
     serverStub.respondWith(200, { 'x-test' : 'test' }, 'a-content');
     doGet(function(resp, content) {
