@@ -1,4 +1,5 @@
 /*global describe, before, after, beforeEach, afterEach, it */
+'use strict';
 
 var expect = require('chai').expect;
 var StringStream = require('string-stream');
