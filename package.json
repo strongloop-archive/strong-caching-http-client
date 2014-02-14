@@ -2,7 +2,10 @@
   "name": "strong-caching-http-client",
   "version": "0.1.0",
   "description": "HTTP client with a transparent filesystem-based cache",
-  "license": "MIT",
+  "license": {
+    "name": "Dual MIT/StrongLoop",
+    "url": "https://github.com/strongloop/strong-caching-http-client/blob/master/LICENSE"
+  },
   "main": "index.js",
   "scripts": {
     "blanket": {
